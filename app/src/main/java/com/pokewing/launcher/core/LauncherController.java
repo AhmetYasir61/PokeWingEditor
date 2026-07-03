@@ -29,13 +29,17 @@ public final class LauncherController {
     private final Context appContext;
     private final GameDirectoryManager directories;
     private final ModInjector modInjector;
-    private final JvmBridge jvmBridge;
 
     public LauncherController(Context context) {
         this.appContext = context.getApplicationContext();
         this.directories = new GameDirectoryManager(appContext);
         this.modInjector = new ModInjector(directories.getModsDir());
-        this.jvmBridge = JvmBridge.getInstance();
+        // JvmBridge (ve onun System.loadLibrary cagirdigi native .so'lar) BURADA
+        // yuklenmez: Mod Studio'yu acip modlari duzenlemek icin native JVM
+        // kutuphanelerine ihtiyac yok. Sadece launch()/terminate() cagrildiginda,
+        // yani kullanici gercekten oyunu baslattiginda yuklenir — aksi halde
+        // native kutuphaneler henuz hazir/uyumlu degilse (bkz. README) tum
+        // uygulama daha ana ekran acilmadan cokerdi.
     }
 
     /**
@@ -68,6 +72,15 @@ public final class LauncherController {
             callback.onFatalError("Surum jar dosyasi bulunamadi: " + versionJar.getAbsolutePath());
             return false;
         }
+
+        JvmBridge jvmBridge;
+        try {
+            jvmBridge = JvmBridge.getInstance();
+        } catch (UnsatisfiedLinkError e) {
+            callback.onFatalError("Native JVM kutuphaneleri yuklenemedi: " + e.getMessage());
+            return false;
+        }
+
         if (jvmBridge.isRunning()) {
             callback.onFatalError("Zaten calisan bir oyun oturumu var.");
             return false;
@@ -89,7 +102,12 @@ public final class LauncherController {
     }
 
     public void terminate() {
-        jvmBridge.shutdown();
+        try {
+            JvmBridge.getInstance().shutdown();
+        } catch (UnsatisfiedLinkError e) {
+            // launch() hic basarili olmadiysa (native kutuphane yuklenemedi),
+            // durduracak bir seyin zaten olmadigi anlamina gelir.
+        }
     }
 
     // ------------------------------------------------------------------
