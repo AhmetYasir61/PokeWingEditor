@@ -1,0 +1,26 @@
+plugins {
+    id "architectury-plugin"
+}
+
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.property('fabric_loader_version')}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.property('fabric_api_version')}"
+
+    modImplementation "dev.architectury:architectury-fabric:${rootProject.property('architectury_api_version')}"
+
+    implementation project(":common") {
+        transitive = false
+    }
+}
+
+processResources {
+    inputs.property "version", rootProject.property("mod_version")
+    filesMatching("fabric.mod.json") {
+        expand "version": rootProject.property("mod_version")
+    }
+}

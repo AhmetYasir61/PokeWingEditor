@@ -1,0 +1,25 @@
+# Template systemd servisi. Kurulum:
+#   sudo cp pokewing-mc@.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now pokewing-mc@fabric
+#
+# "@fabric" kismi /opt/pokewing-mc/fabric dizinini kullanir; ayni sablonla
+# pokewing-mc@forge, pokewing-mc@neoforge, pokewing-mc@vanilla de calisir.
+[Unit]
+Description=PokeWing Classroom Minecraft Server (%i)
+After=network.target
+
+[Service]
+Type=simple
+User=mcserver
+WorkingDirectory=/opt/pokewing-mc/%i
+# server_start.sh her loader klasorunde farkli olabilir (fabric-server-launch.jar,
+# forge jar, neoforge jar veya vanilla server.jar) — bkz. deploy/README.md
+ExecStart=/opt/pokewing-mc/%i/server_start.sh
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

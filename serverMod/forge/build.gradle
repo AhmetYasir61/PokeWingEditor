@@ -1,0 +1,25 @@
+plugins {
+    id "architectury-plugin"
+}
+
+architectury {
+    platformSetupLoomIde()
+    forge()
+}
+
+dependencies {
+    forge "net.minecraftforge:forge:${rootProject.property('forge_version')}"
+
+    modImplementation "dev.architectury:architectury-forge:${rootProject.property('architectury_api_version')}"
+
+    implementation project(":common") {
+        transitive = false
+    }
+}
+
+processResources {
+    inputs.property "version", rootProject.property("mod_version")
+    filesMatching("META-INF/mods.toml") {
+        expand "version": rootProject.property("mod_version")
+    }
+}

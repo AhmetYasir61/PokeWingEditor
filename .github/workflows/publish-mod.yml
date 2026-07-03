@@ -1,0 +1,88 @@
+name: Publish Aggregator Mod & Restart Server
+
+# Mod Studio codegen ciktisi serverMod/common icine yazilip push edildiginde
+# (ya da elle bir mod eklendiginde) tetiklenir: fabric/forge/neoforge
+# jar'larini derler, datapack'i paketler, VPS'e gonderir ve sunucuyu
+# yeniden baslatir. VPS_* secret'lari tanimli degilse deploy adimi atlanir
+# (ozellikle ilk kurulum tamamlanana kadar).
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "serverMod/**"
+      - ".github/workflows/publish-mod.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: serverMod
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # serverMod henuz bir gradle-wrapper.jar tasimiyor (bkz. README'deki
+          # aciklama); bu, belirtilen surumu indirip PATH'e ekleyerek "gradle"
+          # komutunu wrapper'siz kullanmayi saglar.
+          gradle-version: "8.7"
+
+      - name: Build fabric + forge + neoforge jars
+        run: |
+          if [ -f gradlew ]; then chmod +x gradlew; GRADLE=./gradlew; else GRADLE=gradle; fi
+          "$GRADLE" :fabric:build :forge:build :neoforge:build --stacktrace
+
+      - name: Collect build artifacts
+        run: |
+          mkdir -p ../publish-artifacts
+          find . -path "*/build/libs/*.jar" ! -name "*-dev.jar" ! -name "*-sources.jar" -exec cp {} ../publish-artifacts/ \;
+          cp -r datapacks/pokewing_classroom ../publish-artifacts/ 2>/dev/null || true
+          ls -la ../publish-artifacts
+
+      - name: Upload artifacts (always, even without VPS)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pokewing-aggregator-jars
+          path: publish-artifacts/*
+
+      - name: Check VPS secrets are configured
+        id: vps_check
+        run: |
+          if [ -n "${{ secrets.VPS_HOST }}" ] && [ -n "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VPS_HOST/VPS_SSH_KEY secret'lari tanimli degil, deploy adimi atlaniyor. Kurulum icin deploy/README.md dosyasina bakin."
+          fi
+
+      - name: Upload jars + datapack + deploy.sh to VPS
+        if: steps.vps_check.outputs.configured == 'true'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "publish-artifacts/*,deploy/deploy.sh"
+          target: "~/incoming"
+          strip_components: 1
+
+      - name: Run deploy.sh on VPS
+        if: steps.vps_check.outputs.configured == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            bash ~/incoming/deploy.sh "${{ secrets.VPS_LOADER }}" "${{ secrets.VPS_SERVER_DIR }}" ~/incoming

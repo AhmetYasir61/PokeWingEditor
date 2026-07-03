@@ -1,0 +1,14 @@
+plugins {
+    id "architectury-plugin"
+}
+
+architectury {
+    common(rootProject.subprojects.findAll { it.name != "common" }.collect { it.name })
+}
+
+dependencies {
+    // Architectury API: Fabric/Forge/NeoForge arasindaki farkli event/registry
+    // sistemlerini tek bir ortak arayuz altinda soyutlar. Ogrenci modlarinin
+    // %90'i sadece bu common modul icinde, loader'dan bagimsiz yazilabilir.
+    modApi "dev.architectury:architectury:${rootProject.property('architectury_api_version')}"
+}

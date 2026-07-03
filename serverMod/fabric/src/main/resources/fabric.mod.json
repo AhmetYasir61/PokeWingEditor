@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "pokewing_aggregator",
+  "version": "${version}",
+  "name": "PokeWing Classroom Mods",
+  "description": "Sinifin urettigi tum ogrenci modlarini tek jar'da toplayan, her publish'te guncellenen sunucu modu.",
+  "authors": ["PokeWing Classroom"],
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.pokewing.aggregator.fabric.AggregatorModFabric"]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "fabric-api": "*",
+    "minecraft": "1.20.1"
+  }
+}

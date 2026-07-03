@@ -1,0 +1,25 @@
+plugins {
+    id "architectury-plugin"
+}
+
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+dependencies {
+    neoForge "net.neoforged:neoforge:${rootProject.property('neoforge_version')}"
+
+    modImplementation "dev.architectury:architectury-neoforge:${rootProject.property('architectury_api_version')}"
+
+    implementation project(":common") {
+        transitive = false
+    }
+}
+
+processResources {
+    inputs.property "version", rootProject.property("mod_version")
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand "version": rootProject.property("mod_version")
+    }
+}
