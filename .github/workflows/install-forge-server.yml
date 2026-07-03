@@ -1,0 +1,74 @@
+name: Sunucuya Forge Server Jar Kur
+
+# Elle tetiklenir; bootstrap-vps.yml calistiktan SONRA, bir kez calistirilir.
+# Resmi Forge installer'ini indirip "--installServer" ile calistirir (bu,
+# run.sh/@libraries/.../unix_args.txt yapisini + gerekli tum kutuphaneleri
+# indirir) ve sonucu VPS'teki VPS_SERVER_DIR (orn. /opt/pokewing-mc/forge)
+# icine gonderir.
+#
+# mc_version + forge_version varsayilanlari serverMod/gradle.properties
+# icindeki minecraft_version/forge_version ile ayni tutulmalidir.
+on:
+  workflow_dispatch:
+    inputs:
+      mc_version:
+        description: "Minecraft surumu"
+        required: true
+        default: "1.20.1"
+      forge_version:
+        description: "Forge surumu (sadece Forge kismi, orn. 47.2.20)"
+        required: true
+        default: "47.2.20"
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.VPS_HOST }}" ] || [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "::error::VPS_HOST/VPS_SSH_KEY secret'lari eksik. Once bootstrap-vps.yml'yi calistirip deploy anahtarini ekleyin."
+            exit 1
+          fi
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Download Forge installer
+        run: |
+          FULL_VERSION="${{ inputs.mc_version }}-${{ inputs.forge_version }}"
+          curl -sSL -o forge-installer.jar \
+            "https://maven.minecraftforge.net/net/minecraftforge/forge/${FULL_VERSION}/forge-${FULL_VERSION}-installer.jar"
+
+      - name: Run installer (server mode)
+        run: |
+          mkdir -p server_output
+          java -jar forge-installer.jar --installServer server_output
+          echo "eula=true" > server_output/eula.txt
+          ls -la server_output
+
+      - name: Upload server files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "server_output/*"
+          target: "${{ secrets.VPS_SERVER_DIR }}"
+          strip_components: 1
+
+      - name: (Yeniden) başlat
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            sudo systemctl start pokewing-mc@${{ secrets.VPS_LOADER }} || true
+            sleep 5
+            sudo systemctl is-active pokewing-mc@${{ secrets.VPS_LOADER }}

@@ -1,0 +1,62 @@
+name: Sunucuya Vanilla Server Jar Kur
+
+# Elle tetiklenir; bootstrap-vps.yml calistiktan SONRA, bir kez calistirilir.
+# Installer gerektirmez: Mojang'in resmi surum manifestinden dogrudan
+# server.jar indirilir ve VPS'teki VPS_SERVER_DIR (orn. /opt/pokewing-mc/vanilla)
+# icine gonderilir. Bu profilde mod calismaz; sadece
+# serverMod/datapacks/pokewing_classroom (publish-mod.yml ile) senkronize edilir.
+on:
+  workflow_dispatch:
+    inputs:
+      mc_version:
+        description: "Minecraft surumu"
+        required: true
+        default: "1.20.1"
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.VPS_HOST }}" ] || [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "::error::VPS_HOST/VPS_SSH_KEY secret'lari eksik. Once bootstrap-vps.yml'yi calistirip deploy anahtarini ekleyin."
+            exit 1
+          fi
+
+      - name: Download server.jar from Mojang version manifest
+        run: |
+          mkdir -p server_output
+          MANIFEST_URL=$(curl -sSL "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" \
+            | jq -r --arg v "${{ inputs.mc_version }}" '.versions[] | select(.id == $v) | .url')
+          if [ -z "$MANIFEST_URL" ] || [ "$MANIFEST_URL" = "null" ]; then
+            echo "::error::${{ inputs.mc_version }} surumu Mojang manifestinde bulunamadi."
+            exit 1
+          fi
+          SERVER_URL=$(curl -sSL "$MANIFEST_URL" | jq -r '.downloads.server.url')
+          curl -sSL -o server_output/server.jar "$SERVER_URL"
+          echo "eula=true" > server_output/eula.txt
+          ls -la server_output
+
+      - name: Upload server files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "server_output/*"
+          target: "${{ secrets.VPS_SERVER_DIR }}"
+          strip_components: 1
+
+      - name: (Yeniden) başlat
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            sudo systemctl start pokewing-mc@${{ secrets.VPS_LOADER }} || true
+            sleep 5
+            sudo systemctl is-active pokewing-mc@${{ secrets.VPS_LOADER }}

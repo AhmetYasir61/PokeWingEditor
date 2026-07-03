@@ -76,9 +76,18 @@ kurulur — bu da telefondan, tek tık ile yapılabilir:
    `libraries/` + vanilla `server.jar`'ı üretir, VPS'teki `VPS_SERVER_DIR`
    içine gönderir ve sunucuyu başlatır.
 
-Forge/NeoForge/Vanilla seçtiyseniz benzer bir workflow gerekir (resmi
-installer'ları farklı çalışır) — hangisini seçtiğinizi söylerseniz onu da
-ekleyebilirim; şimdilik yalnızca Fabric için hazır.
+Forge/NeoForge/Vanilla seçtiyseniz aynı mantıkla çalışan hazır workflow'lar da
+var, sadece adları farklı:
+
+| Loader | Workflow adı | Girdi |
+|---|---|---|
+| Fabric | Sunucuya Fabric Server Jar Kur | `mc_version`, `fabric_installer_version` |
+| Forge | Sunucuya Forge Server Jar Kur | `mc_version`, `forge_version` |
+| NeoForge | Sunucuya NeoForge Server Jar Kur | `neoforge_version` |
+| Vanilla | Sunucuya Vanilla Server Jar Kur | `mc_version` (installer yok, Mojang'ın resmi sürüm manifestinden `server.jar` indirilir) |
+
+Hangisini kullanacaksanız `VPS_LOADER`/`VPS_SERVER_DIR` secret'larını o
+loader'a göre ayarlayıp ilgili workflow'u çalıştırmanız yeterli.
 
 ## 4) Akışın tamamı
 
