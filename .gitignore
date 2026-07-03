@@ -1,0 +1,16 @@
+*.iml
+.gradle/
+/local.properties
+.idea/
+.DS_Store
+/build/
+/app/build/
+/captures
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# Gomulu JRE / native kutuphaneler gibi buyuk binary bagimliliklar repoya commitlenmez
+/app/src/main/jniLibs/*
+!/app/src/main/jniLibs/.gitkeep

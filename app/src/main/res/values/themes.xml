@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.PokeWingLauncher" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/pokewing_primary</item>
+        <item name="colorPrimaryDark">@color/pokewing_primary_dark</item>
+        <item name="colorAccent">@color/pokewing_accent</item>
+    </style>
+</resources>

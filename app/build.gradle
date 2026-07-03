@@ -1,0 +1,107 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.pokewing.launcher'
+    compileSdk 34
+    ndkVersion "26.3.11579264"
+
+    defaultConfig {
+        applicationId "com.pokewing.launcher"
+        minSdk 26          // Android 8.0 - modern JVM/JIT ve dosya API'leri icin taban seviye
+        targetSdk 34
+        versionCode 1
+        versionName "0.1.0-alpha"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            // Dusuk donanimli cihazlarin buyuk cogunlugu arm64-v8a / armeabi-v7a.
+            // x86 sadece emulator/test icin bulunduruluyor.
+            abiFilters "arm64-v8a", "armeabi-v7a", "x86_64"
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17 -O3 -fvisibility=hidden"
+                arguments "-DANDROID_STL=c++_shared"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+
+    splits {
+        // Her cihaz sadece kendi mimarisine ait native kutuphaneyi indirsin,
+        // APK boyutu ve RAM/disk baskisi dusuk donanimda ciddi fark yaratir.
+        abi {
+            enable true
+            reset()
+            include "arm64-v8a", "armeabi-v7a", "x86_64"
+            universalApk true
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            debuggable true
+            jniDebuggable true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true // JVM/LWJGL native .so dosyalarinin sikistirilmadan paketlenmesi (hizli yukleme)
+        }
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*']
+        }
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    // --- Cekirdek Android UI ---
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.8.2'
+    implementation 'androidx.documentfile:documentfile:1.0.1' // SAF ile .jar / .zip erisimi
+
+    // --- Runtime & Launcher katmani ---
+    // Not: LWJGL'nin resmi Android portu yoktur; bu nedenle GL katmani NDK/CMake
+    // uzerinden (app/src/main/cpp) native olarak baglanir. Asagidaki bagimlilik
+    // LWJGL uyumlu Java arayuzlerini (bindings) saglayan topluluk portu icindir.
+    implementation 'org.lwjgl:lwjgl:3.3.3' // Java tarafi sabitler/enum/arayuz seti icin
+
+    // --- JSON / Model ayristirma (Blockbench .json, mod meta, launcher profilleri) ---
+    implementation 'com.google.code.gson:gson:2.11.0'
+
+    // --- Jar/Zip islemleri (mod enjeksiyonu, mods klasoru yonetimi) ---
+    implementation 'org.apache.commons:commons-compress:1.26.2'
+
+    // --- Test ---
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+}

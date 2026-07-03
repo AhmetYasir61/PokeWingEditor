@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-feature android:name="android.hardware.opengles.aep" android:required="false" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
+    <application
+        android:name=".core.LauncherApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:largeHeap="true"
+        android:hardwareAccelerated="true"
+        android:theme="@style/Theme.PokeWingLauncher"
+        android:extractNativeLibs="true">
+
+        <activity
+            android:name=".ui.activities.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Runtime & Launcher modulu: JVM/oyun oturumu ayri process'te calisir,
+             cokme durumunda Mod Studio arayuzunu etkilemez ve bellek izolasyonu saglar. -->
+        <activity
+            android:name=".ui.activities.GameSessionActivity"
+            android:exported="false"
+            android:process=":gameRuntime"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="sensorLandscape" />
+
+        <!-- Mod Studio modulu: Blockbench modelleri + blok tabanli mod editoru -->
+        <activity
+            android:name=".ui.activities.ModStudioActivity"
+            android:exported="false" />
+
+    </application>
+</manifest>
