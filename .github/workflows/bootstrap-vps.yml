@@ -1,0 +1,57 @@
+name: Bootstrap VPS (tek seferlik kurulum)
+
+# ELLE tetiklenir (workflow_dispatch) — otomatik push ile calismaz, cunku
+# root parola secret'ini kullanir ve normalde sadece ilk kurulumda bir kez
+# calistirilmasi gerekir. Kurulum tamamlandiktan sonra VPS_ROOT_PASSWORD
+# secret'ini GitHub'dan silip gunluk deploy islemleri icin
+# .github/workflows/publish-mod.yml (VPS_SSH_KEY ile) kullanilir.
+#
+# Gerekli secret'lar:
+#   VPS_HOST           sunucu IP/alan adi
+#   VPS_PORT           SSH portu (genelde 22)
+#   VPS_ROOT_PASSWORD  GECICI: ilk kurulum icin root parolasi
+on:
+  workflow_dispatch: {}
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.VPS_HOST }}" ] || [ -z "${{ secrets.VPS_ROOT_PASSWORD }}" ]; then
+            echo "::error::VPS_HOST ve VPS_ROOT_PASSWORD secret'larini once ekleyin (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+      - name: Upload bootstrap files to VPS (as root)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          password: ${{ secrets.VPS_ROOT_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "deploy/bootstrap.sh,deploy/authorized_keys/deploy_key.pub,deploy/pokewing-mc@.service,deploy/server_start_templates/*"
+          target: "~/bootstrap-incoming"
+          strip_components: 1
+
+      - name: Run bootstrap.sh on VPS (as root)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          password: ${{ secrets.VPS_ROOT_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            chmod +x ~/bootstrap-incoming/bootstrap.sh
+            bash ~/bootstrap-incoming/bootstrap.sh ~/bootstrap-incoming
+
+      - name: Sonraki adimlar
+        run: |
+          echo "::notice::Bootstrap tamamlandi. Simdi yapmaniz gerekenler:"
+          echo "::notice::1) Repo Secrets'a VPS_SSH_KEY olarak deploy ozel anahtarini ekleyin (sohbette ayrica paylasildi)."
+          echo "::notice::2) VPS_USER=deploy, VPS_PORT, VPS_LOADER (fabric/forge/neoforge/vanilla), VPS_SERVER_DIR (orn. /opt/pokewing-mc/fabric) secret'larini ekleyin."
+          echo "::notice::3) ssh -i deploy_key deploy@<VPS_HOST> ile anahtarin calistigini dogrulayin."
+          echo "::notice::4) Dogruladiktan sonra VPS saglayicinizin panelinden root parolasini degistirin ve VPS_ROOT_PASSWORD secret'ini silin."

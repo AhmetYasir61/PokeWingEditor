@@ -10,54 +10,57 @@ deploy `.github/workflows/publish-mod.yml` içinde bulutta çalışır.
 Önerilen: **Oracle Cloud Free Tier** (Always Free ARM Ampere instance, 4 vCPU/24GB
 RAM'e kadar ücretsiz) — kredi kartı istese de ücretlendirmez, öğrenci projeleri
 için yeterince güçlü. Alternatif: herhangi bir 5-10$/ay KVM VPS (Hetzner,
-Contabo vb.). Kurulum adımları:
+Contabo vb.). VPS'i Ubuntu 22.04/24.04 ile oluşturun; başka bir şey yapmanıza
+gerek yok, geri kalanı aşağıdaki otomatik kurulum ile yapılır.
 
-1. VPS'i Ubuntu 22.04/24.04 ile oluşturun.
-2. SSH ile bağlanıp Java 21 kurun: `sudo apt update && sudo apt install -y openjdk-21-jre-headless`
-3. Deploy için ayrı, sınırlı yetkili bir kullanıcı oluşturun:
-   ```
-   sudo useradd -m -s /bin/bash mcserver
-   sudo useradd -m -s /bin/bash deploy
-   sudo usermod -aG mcserver deploy
-   ```
-4. Her loader için bir dizin açın ve resmi kurulum araçlarıyla sunucuyu kurun
-   (bu adım loader'a göre değişir, resmi Fabric/Forge/NeoForge/Vanilla
-   installer'larını kullanın):
-   ```
-   sudo mkdir -p /opt/pokewing-mc/{fabric,forge,neoforge,vanilla}
-   sudo chown -R mcserver:mcserver /opt/pokewing-mc
-   ```
-   Her klasöre `deploy/server_start_templates/<loader>.sh` dosyasını
-   `server_start.sh` adıyla kopyalayıp `chmod +x` yapın; `eula.txt` içine
-   `eula=true` yazmayı unutmayın (Mojang EULA onayı).
-5. Systemd servisini kurun:
-   ```
-   sudo cp deploy/pokewing-mc@.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now pokewing-mc@fabric   # kullandığınız loader(lar) için tekrarlayın
-   ```
-6. `deploy` kullanıcısının `systemctl start/stop` ve dosya kopyalama yapabilmesi
-   için sudoers'a sınırlı bir kural ekleyin:
-   ```
-   echo 'deploy ALL=(mcserver) NOPASSWD: /usr/bin/systemctl start pokewing-mc@*, /usr/bin/systemctl stop pokewing-mc@*' \
-     | sudo tee /etc/sudoers.d/pokewing-deploy
-   ```
+## 2) Otomatik kurulum: `bootstrap-vps.yml` (telefondan, tek tık)
 
-## 2) SSH anahtarı ve GitHub Secrets
+Bilgisayarınız yoksa bile bu adımı GitHub'ın mobil sitesinden/uygulamasından
+yapabilirsiniz — sunucuya SSH ile bağlanmanıza gerek yok, GitHub Actions bunu
+sizin için yapar.
 
-VPS üzerinde `deploy` kullanıcısı için bir SSH anahtar çifti oluşturup genel
-anahtarı `~deploy/.ssh/authorized_keys` içine ekleyin. Özel anahtarı GitHub
-reponuzun **Settings → Secrets and variables → Actions** kısmına şu isimlerle
-ekleyin (hepsi telefondan GitHub mobil sitesi/uygulaması üzerinden yapılabilir):
+1. Repo **Settings → Secrets and variables → Actions** kısmına şu **geçici**
+   secret'ları ekleyin:
 
-| Secret adı | Değer |
-|---|---|
-| `VPS_HOST` | VPS'in IP adresi veya alan adı |
-| `VPS_USER` | `deploy` |
-| `VPS_SSH_KEY` | `deploy` kullanıcısının özel SSH anahtarı (tam içerik) |
-| `VPS_PORT` | SSH portu (genelde `22`) |
-| `VPS_LOADER` | `fabric`, `forge`, `neoforge` veya `vanilla` (şimdilik tek loader) |
-| `VPS_SERVER_DIR` | örn. `/opt/pokewing-mc/fabric` |
+   | Secret adı | Değer |
+   |---|---|
+   | `VPS_HOST` | VPS'in IP adresi veya alan adı |
+   | `VPS_PORT` | SSH portu (genelde `22`) |
+   | `VPS_ROOT_PASSWORD` | VPS'in **root** parolası (sadece bu tek seferlik kurulum için) |
+
+2. **Actions** sekmesinden **"Bootstrap VPS (tek seferlik kurulum)"**
+   workflow'unu bulup **Run workflow** ile elle çalıştırın.
+3. Workflow otomatik olarak: Java 21'i kurar, `mcserver`/`deploy` kullanıcılarını
+   oluşturur, `/opt/pokewing-mc/{fabric,forge,neoforge,vanilla}` dizinlerini
+   hazırlar, systemd servisini + loader başlatma script'lerini kurar ve
+   `deploy` kullanıcısına **sadece anahtar ile** giriş izni tanımlar
+   (`deploy/authorized_keys/deploy_key.pub` — bu genel anahtar repoda
+   saklanır, gizli değildir).
+4. Bu genel anahtarın **özel eşi** ayrıca (bu depoya commitlenmez, size sohbet
+   üzerinden verilir) — onu aşağıdaki secret'lara ekleyin:
+
+   | Secret adı | Değer |
+   |---|---|
+   | `VPS_USER` | `deploy` |
+   | `VPS_SSH_KEY` | size verilen özel SSH anahtarının tam içeriği |
+   | `VPS_LOADER` | `fabric`, `forge`, `neoforge` veya `vanilla` (şimdilik tek loader) |
+   | `VPS_SERVER_DIR` | örn. `/opt/pokewing-mc/fabric` |
+
+5. **Önemli güvenlik adımı:** `VPS_SSH_KEY` ile bağlantının çalıştığını
+   doğruladıktan sonra, VPS sağlayıcınızın panelinden/konsolundan **root
+   parolasını değiştirin** ve `VPS_ROOT_PASSWORD` secret'ını GitHub'dan silin.
+   Bootstrap script'i kasıtlı olarak parola girişini kapatmıyor/root'u
+   kilitlemiyor (deploy anahtarı beklenmedik şekilde çalışmazsa sizi kendi
+   sunucunuzdan tamamen dışarıda bırakabilirdi) — bu yüzden parolayı elle
+   değiştirmeniz gerekiyor.
+
+### Alternatif: elle kurulum
+
+Otomasyonu kullanmak istemiyorsanız, `deploy/bootstrap.sh` dosyasındaki
+adımları (Java kurulumu, kullanıcı oluşturma, systemd servisi, sudoers kuralı)
+telefondan bir SSH uygulamasıyla (Termux, Termius, JuiceSSH) veya
+bilgisayarınızdan elle de çalıştırabilirsiniz; script'in kendisi okunabilir
+ve yorum satırlarıyla açıklanmıştır.
 
 ## 3) Akışın tamamı
 
