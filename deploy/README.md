@@ -62,7 +62,25 @@ telefondan bir SSH uygulamasıyla (Termux, Termius, JuiceSSH) veya
 bilgisayarınızdan elle de çalıştırabilirsiniz; script'in kendisi okunabilir
 ve yorum satırlarıyla açıklanmıştır.
 
-## 3) Akışın tamamı
+## 3) Fabric sunucu jar'ını kur (otomatik)
+
+Bootstrap sadece işletim sistemi/kullanıcı/systemd katmanını hazırlar; asıl
+Minecraft sunucu dosyaları (fabric-server-launch.jar vb.) ayrı bir adımda
+kurulur — bu da telefondan, tek tık ile yapılabilir:
+
+1. Yukarıdaki `VPS_SSH_KEY`, `VPS_USER`, `VPS_SERVER_DIR`, `VPS_LOADER`
+   secret'larının eklendiğinden emin olun (adım 2'nin sonundaki tablo).
+2. **Actions** → **"Sunucuya Fabric Server Jar Kur"** → **Run workflow**
+   (istersen `mc_version` girdisini değiştirebilirsin, varsayılan `1.20.1`).
+3. Workflow resmi Fabric installer'ını indirir, `fabric-server-launch.jar` +
+   `libraries/` + vanilla `server.jar`'ı üretir, VPS'teki `VPS_SERVER_DIR`
+   içine gönderir ve sunucuyu başlatır.
+
+Forge/NeoForge/Vanilla seçtiyseniz benzer bir workflow gerekir (resmi
+installer'ları farklı çalışır) — hangisini seçtiğinizi söylerseniz onu da
+ekleyebilirim; şimdilik yalnızca Fabric için hazır.
+
+## 4) Akışın tamamı
 
 1. Sen (veya öğrencin) Mod Studio'da bir mod üretip "Publish" der / ya da
    doğrudan `serverMod/` altında koda dokunup push edersin.

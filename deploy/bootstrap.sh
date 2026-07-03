@@ -39,6 +39,11 @@ usermod -aG mcserver deploy
 echo "[bootstrap] sunucu dizinleri hazirlaniyor..."
 mkdir -p /opt/pokewing-mc/{fabric,forge,neoforge,vanilla}
 chown -R mcserver:mcserver /opt/pokewing-mc
+# deploy, mcserver grubuna uye (bkz. yukarida); grup-yazma + setgid ile CI'nin
+# (deploy kullanicisi) sudo'suz dosya kopyalayabilmesini, yeni dosya/dizinlerin
+# de mcserver grubunda kalmasini sagliyoruz.
+chmod -R g+rwX /opt/pokewing-mc
+find /opt/pokewing-mc -type d -exec chmod g+s {} +
 
 echo "[bootstrap] deploy kullanicisi icin anahtar-tabanli SSH girisi kuruluyor..."
 install -d -m 700 -o deploy -g deploy /home/deploy/.ssh

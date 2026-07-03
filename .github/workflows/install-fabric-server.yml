@@ -1,0 +1,77 @@
+name: Sunucuya Fabric Server Jar Kur
+
+# Elle tetiklenir; bootstrap-vps.yml calistiktan (Java/kullanici/dizin/systemd
+# hazir oldugunda) SONRA, bir kez calistirilir. Resmi Fabric installer'ini
+# indirip "server" modunda calistirir (bu, fabric-server-launch.jar +
+# libraries/ + vanilla server.jar'i indirir) ve sonucu VPS'teki
+# /opt/pokewing-mc/fabric (VPS_SERVER_DIR) icine gonderir.
+#
+# Surum degistirmek isterseniz "Run workflow" ekraninda mc_version'i
+# degistirebilirsiniz; serverMod/gradle.properties'teki minecraft_version ile
+# ayni tutmaniz onerilir.
+on:
+  workflow_dispatch:
+    inputs:
+      mc_version:
+        description: "Minecraft surumu"
+        required: true
+        default: "1.20.1"
+      fabric_installer_version:
+        description: "Fabric installer surumu"
+        required: true
+        default: "1.0.1"
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.VPS_HOST }}" ] || [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "::error::VPS_HOST/VPS_SSH_KEY secret'lari eksik. Once bootstrap-vps.yml'yi calistirip deploy anahtarini ekleyin."
+            exit 1
+          fi
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Download Fabric installer
+        run: |
+          curl -sSL -o fabric-installer.jar \
+            "https://maven.fabricmc.net/net/fabricmc/fabric-installer/${{ inputs.fabric_installer_version }}/fabric-installer-${{ inputs.fabric_installer_version }}.jar"
+
+      - name: Run installer (server mode)
+        run: |
+          mkdir -p server_output
+          java -jar fabric-installer.jar server \
+            -mcversion "${{ inputs.mc_version }}" \
+            -dir server_output \
+            -downloadMinecraft
+          echo "eula=true" > server_output/eula.txt
+          ls -la server_output
+
+      - name: Upload server files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "server_output/*"
+          target: "${{ secrets.VPS_SERVER_DIR }}"
+          strip_components: 1
+
+      - name: (Yeniden) başlat
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            sudo systemctl start pokewing-mc@${{ secrets.VPS_LOADER }} || true
+            sleep 5
+            sudo systemctl is-active pokewing-mc@${{ secrets.VPS_LOADER }}
